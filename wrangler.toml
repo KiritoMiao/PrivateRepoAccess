@@ -1,0 +1,22 @@
+name = "worker-access-interface"
+main = "src/index.ts"
+compatibility_date = "2026-05-29"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+TURNSTILE_SITE_KEY = ""
+GITHUB_ORG = ""
+GITHUB_REPO = ""
+GITHUB_ROLE = "direct_member"
+GITHUB_TEAM_SLUG = ""
+GITHUB_PERMISSION = "pull"
+VERIFICATION_EMAIL = ""
+
+[[kv_namespaces]]
+binding = "PENDING_VERIFICATIONS"
+id = ""
+preview_id = ""
+
+# Secrets (set via `wrangler secret put`):
+# TURNSTILE_SECRET_KEY
+# GITHUB_PAT
