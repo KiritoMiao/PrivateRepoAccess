@@ -14,8 +14,8 @@ VERIFICATION_EMAIL = ""
 
 [[kv_namespaces]]
 binding = "PENDING_VERIFICATIONS"
-id = ""
-preview_id = ""
+id = "00000000000000000000000000000001"
+preview_id = "00000000000000000000000000000001"
 
 # Secrets (set via `wrangler secret put`):
 # TURNSTILE_SECRET_KEY
