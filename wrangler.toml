@@ -17,6 +17,9 @@ VERIFICATION_EMAIL = "faas-gauge-verification@kirito.one"
 binding = "FAASGAUGE_REPO_PENDING_VERIFICATIONS"
 id = "f94d592a8f934e549b10dd0d7f65fd3b"
 
+[observability]
+enabled = true
+
 # Secrets (set via `wrangler secret put`):
 # TURNSTILE_SECRET_KEY
 # GITHUB_PAT
