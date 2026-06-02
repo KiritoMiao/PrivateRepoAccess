@@ -4,18 +4,18 @@ compatibility_date = "2026-05-29"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-TURNSTILE_SITE_KEY = ""
-GITHUB_ORG = ""
-GITHUB_REPO = ""
+KV_BINDING_NAME = "FAASGAUGE_REPO_PENDING_VERIFICATIONS"
+TURNSTILE_SITE_KEY = "0x4AAAAAADdU2J9qTew8MH0L"
+GITHUB_ORG = "FaaS-GAUGE"
+GITHUB_REPO = "benchmarks"
 GITHUB_ROLE = "direct_member"
-GITHUB_TEAM_SLUG = ""
+GITHUB_TEAM_SLUG = "benchmark-readers"
 GITHUB_PERMISSION = "pull"
-VERIFICATION_EMAIL = ""
+VERIFICATION_EMAIL = "faas-gauge-verification@kirito.one"
 
 [[kv_namespaces]]
-binding = "PENDING_VERIFICATIONS"
-id = "00000000000000000000000000000001"
-preview_id = "00000000000000000000000000000001"
+binding = "FAASGAUGE_REPO_PENDING_VERIFICATIONS"
+id = "f94d592a8f934e549b10dd0d7f65fd3b"
 
 # Secrets (set via `wrangler secret put`):
 # TURNSTILE_SECRET_KEY

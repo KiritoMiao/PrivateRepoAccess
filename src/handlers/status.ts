@@ -1,4 +1,4 @@
-import type { Env, VerificationStatus } from "../types";
+import { type Env, type VerificationStatus, getKV } from "../types";
 import { getVerification } from "../services/kv";
 
 const STATUS_MESSAGES: Record<VerificationStatus, string> = {
@@ -14,7 +14,7 @@ export async function handleStatus(
   const url = new URL(request.url);
   const token = url.pathname.split("/").pop() || "";
 
-  const record = await getVerification(env.PENDING_VERIFICATIONS, token);
+  const record = await getVerification(getKV(env), token);
   if (!record) {
     return Response.json(
       { error: "Verification not found or expired" },

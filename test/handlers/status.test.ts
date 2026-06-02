@@ -15,7 +15,7 @@ describe("handleStatus", () => {
 
   it("returns pending_email status", async () => {
     const token = await createVerification(
-      env.PENDING_VERIFICATIONS,
+      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
       "status1@example.com"
     );
     const res = await handleStatus(makeRequest(token), env);
@@ -27,11 +27,11 @@ describe("handleStatus", () => {
 
   it("returns completed status", async () => {
     const token = await createVerification(
-      env.PENDING_VERIFICATIONS,
+      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
       "status2@example.com"
     );
     await updateVerificationStatus(
-      env.PENDING_VERIFICATIONS,
+      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
       token,
       "completed"
     );
@@ -42,11 +42,11 @@ describe("handleStatus", () => {
 
   it("returns failed_github_api status", async () => {
     const token = await createVerification(
-      env.PENDING_VERIFICATIONS,
+      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
       "status3@example.com"
     );
     await updateVerificationStatus(
-      env.PENDING_VERIFICATIONS,
+      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
       token,
       "failed_github_api"
     );

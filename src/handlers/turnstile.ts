@@ -1,4 +1,4 @@
-import type { Env } from "../types";
+import { type Env, getKV } from "../types";
 import { verifyTurnstile } from "../services/turnstile";
 import { createVerification } from "../services/kv";
 
@@ -26,6 +26,6 @@ export async function handleVerifyTurnstile(
     return Response.json({ error: "Turnstile verification failed" }, { status: 403 });
   }
 
-  const token = await createVerification(env.PENDING_VERIFICATIONS, body.email);
+  const token = await createVerification(getKV(env), body.email);
   return Response.json({ token });
 }

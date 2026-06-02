@@ -33,7 +33,7 @@ describe("handleEmail", () => {
 
   it("invites user and sets status to completed on success", async () => {
     const token = await createVerification(
-      env.PENDING_VERIFICATIONS,
+      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
       "invitee@example.com"
     );
 
@@ -51,13 +51,13 @@ describe("handleEmail", () => {
 
     await handleEmail(makeEmailMessage("invitee@example.com"), env);
 
-    const record = await getVerification(env.PENDING_VERIFICATIONS, token);
+    const record = await getVerification(env.FAASGAUGE_REPO_PENDING_VERIFICATIONS, token);
     expect(record!.status).toBe("completed");
   });
 
   it("sets status to failed_github_api on GitHub error", async () => {
     const token = await createVerification(
-      env.PENDING_VERIFICATIONS,
+      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
       "fail@example.com"
     );
 
@@ -74,19 +74,19 @@ describe("handleEmail", () => {
 
     await handleEmail(makeEmailMessage("fail@example.com"), env);
 
-    const record = await getVerification(env.PENDING_VERIFICATIONS, token);
+    const record = await getVerification(env.FAASGAUGE_REPO_PENDING_VERIFICATIONS, token);
     expect(record!.status).toBe("failed_github_api");
   });
 
   it("skips already-processed records", async () => {
     const token = await createVerification(
-      env.PENDING_VERIFICATIONS,
+      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
       "done@example.com"
     );
     // Manually complete it
-    const rec = await getVerification(env.PENDING_VERIFICATIONS, token);
+    const rec = await getVerification(env.FAASGAUGE_REPO_PENDING_VERIFICATIONS, token);
     rec!.status = "completed";
-    await env.PENDING_VERIFICATIONS.put(
+    await env.FAASGAUGE_REPO_PENDING_VERIFICATIONS.put(
       `verify:${token}`,
       JSON.stringify(rec)
     );

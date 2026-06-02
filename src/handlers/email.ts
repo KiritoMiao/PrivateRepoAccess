@@ -1,4 +1,4 @@
-import type { Env } from "../types";
+import { type Env, getKV } from "../types";
 import {
   getTokenByEmail,
   getVerification,
@@ -17,16 +17,16 @@ export async function handleEmail(
 ): Promise<void> {
   const senderEmail = message.from.toLowerCase().trim();
 
-  const token = await getTokenByEmail(env.PENDING_VERIFICATIONS, senderEmail);
+  const token = await getTokenByEmail(getKV(env), senderEmail);
   if (!token) return;
 
-  const record = await getVerification(env.PENDING_VERIFICATIONS, token);
+  const record = await getVerification(getKV(env), token);
   if (!record || record.status !== "pending_email") return;
 
   try {
     const cacheKey = `team_id:${env.GITHUB_TEAM_SLUG}`;
     let teamId: number;
-    const cached = await env.PENDING_VERIFICATIONS.get(cacheKey);
+    const cached = await getKV(env).get(cacheKey);
     if (cached) {
       teamId = Number(cached);
     } else {
@@ -35,7 +35,7 @@ export async function handleEmail(
         env.GITHUB_TEAM_SLUG,
         env.GITHUB_PAT
       );
-      await env.PENDING_VERIFICATIONS.put(cacheKey, String(teamId), {
+      await getKV(env).put(cacheKey, String(teamId), {
         expirationTtl: 3600,
       });
     }
@@ -56,14 +56,14 @@ export async function handleEmail(
       env.GITHUB_PAT
     );
 
-    await updateVerificationStatus(env.PENDING_VERIFICATIONS, token, "completed");
+    await updateVerificationStatus(getKV(env), token, "completed");
   } catch {
     await updateVerificationStatus(
-      env.PENDING_VERIFICATIONS,
+      getKV(env),
       token,
       "failed_github_api"
     );
   }
 
-  await deleteEmailIndex(env.PENDING_VERIFICATIONS, senderEmail);
+  await deleteEmailIndex(getKV(env), senderEmail);
 }

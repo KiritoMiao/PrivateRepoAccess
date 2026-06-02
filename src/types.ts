@@ -1,5 +1,5 @@
 export interface Env {
-  PENDING_VERIFICATIONS: KVNamespace;
+  KV_BINDING_NAME: string;
   TURNSTILE_SITE_KEY: string;
   TURNSTILE_SECRET_KEY: string;
   GITHUB_PAT: string;
@@ -9,6 +9,14 @@ export interface Env {
   GITHUB_TEAM_SLUG: string;
   GITHUB_PERMISSION: string;
   VERIFICATION_EMAIL: string;
+}
+
+export function getKV(env: Env): KVNamespace {
+  const kv = (env as unknown as Record<string, unknown>)[env.KV_BINDING_NAME];
+  if (!kv) {
+    throw new Error(`KV binding '${env.KV_BINDING_NAME}' not found in env`);
+  }
+  return kv as KVNamespace;
 }
 
 export type VerificationStatus =
