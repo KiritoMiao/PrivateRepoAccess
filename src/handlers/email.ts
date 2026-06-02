@@ -16,12 +16,19 @@ export async function handleEmail(
   env: Env
 ): Promise<void> {
   const senderEmail = message.from.toLowerCase().trim();
+  console.log(`[email] received from ${senderEmail}`);
 
   const token = await getTokenByEmail(getKV(env), senderEmail);
-  if (!token) return;
+  if (!token) {
+    console.log(`[email] no pending verification for ${senderEmail} — dropping`);
+    return;
+  }
 
   const record = await getVerification(getKV(env), token);
-  if (!record || record.status !== "pending_email") return;
+  if (!record || record.status !== "pending_email") {
+    console.log(`[email] ${senderEmail} — record missing or already processed (${record?.status})`);
+    return;
+  }
 
   try {
     const cacheKey = `team_id:${env.GITHUB_TEAM_SLUG}`;
@@ -38,6 +45,7 @@ export async function handleEmail(
       await getKV(env).put(cacheKey, String(teamId), {
         expirationTtl: 3600,
       });
+      console.log(`[email] resolved team ${env.GITHUB_TEAM_SLUG} → id ${teamId}`);
     }
 
     await ensureRepoPermission(
@@ -57,7 +65,10 @@ export async function handleEmail(
     );
 
     await updateVerificationStatus(getKV(env), token, "completed");
-  } catch {
+    console.log(`[email] SUCCESS: invited ${record.email} to ${env.GITHUB_ORG}/${env.GITHUB_REPO} (team: ${env.GITHUB_TEAM_SLUG}, permission: ${env.GITHUB_PERMISSION || "pull"})`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[email] FAILED: ${record.email} — ${message}`);
     await updateVerificationStatus(
       getKV(env),
       token,

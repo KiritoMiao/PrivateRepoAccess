@@ -14,18 +14,22 @@ export async function handleVerifyTurnstile(
   } | null;
 
   if (!body?.email || !body?.turnstileToken) {
+    console.log("[turnstile] rejected: missing fields");
     return Response.json({ error: "Missing email or turnstileToken" }, { status: 400 });
   }
 
   if (!EMAIL_RE.test(body.email)) {
+    console.log(`[turnstile] rejected: invalid email format — ${body.email}`);
     return Response.json({ error: "Invalid email format" }, { status: 400 });
   }
 
   const valid = await verifyTurnstile(body.turnstileToken, env.TURNSTILE_SECRET_KEY);
   if (!valid) {
+    console.log(`[turnstile] rejected: captcha failed — ${body.email}`);
     return Response.json({ error: "Turnstile verification failed" }, { status: 403 });
   }
 
   const token = await createVerification(getKV(env), body.email);
+  console.log(`[turnstile] verified: ${body.email} — token ${token}`);
   return Response.json({ token });
 }
