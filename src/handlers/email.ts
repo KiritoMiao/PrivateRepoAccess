@@ -16,7 +16,8 @@ export async function handleEmail(
   env: Env
 ): Promise<void> {
   const senderEmail = message.from.toLowerCase().trim();
-  console.log(`[email] received from ${senderEmail}`);
+  const pat = env.GITHUB_PAT || "";
+  console.log(`[email] received from ${senderEmail} — PAT starts with: ${pat.substring(0, 8)}... (length: ${pat.length})`);
 
   const token = await getTokenByEmail(getKV(env), senderEmail);
   if (!token) {

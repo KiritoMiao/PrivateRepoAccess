@@ -4,6 +4,7 @@ function headers(pat: string): Record<string, string> {
   return {
     Authorization: `Bearer ${pat}`,
     Accept: "application/vnd.github+json",
+    "User-Agent": "worker-access-interface",
     "X-GitHub-Api-Version": "2022-11-28",
   };
 }

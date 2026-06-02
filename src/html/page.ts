@@ -17,33 +17,29 @@ export function renderPage(siteKey: string, verificationEmail: string): string {
       align-items: center;
       justify-content: center;
       padding: 1rem;
-      background: #f5f5f5;
-      color: #1a1a1a;
-    }
-    @media (prefers-color-scheme: dark) {
-      body { background: #111; color: #e5e5e5; }
-      .card { background: #1a1a1a; border-color: #333; }
-      input[type="email"] { background: #222; color: #e5e5e5; border-color: #444; }
-      code { background: #222; color: #7dd3fc; }
+      background: #111;
+      color: #e5e5e5;
     }
     .card {
-      background: #fff;
-      border: 1px solid #ddd;
+      background: #1a1a1a;
+      border: 1px solid #333;
       border-radius: 12px;
       padding: 2rem;
       max-width: 480px;
       width: 100%;
     }
     h1 { font-size: 1.25rem; margin-bottom: 0.25rem; }
-    .subtitle { color: #666; font-size: 0.875rem; margin-bottom: 1.5rem; }
+    .subtitle { color: #999; font-size: 0.875rem; margin-bottom: 1.5rem; }
     label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
     input[type="email"] {
       width: 100%;
       padding: 0.5rem 0.75rem;
-      border: 1px solid #ccc;
+      border: 1px solid #444;
       border-radius: 6px;
       font-size: 1rem;
       margin-bottom: 1rem;
+      background: #222;
+      color: #e5e5e5;
     }
     .cf-turnstile { margin-bottom: 1rem; }
     button {
@@ -61,17 +57,13 @@ export function renderPage(siteKey: string, verificationEmail: string): string {
     .step { display: none; }
     .step.active { display: block; }
     .status { text-align: center; padding: 1rem 0; }
-    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #ccc; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 0.5rem; vertical-align: middle; }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #444; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 0.5rem; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .success { color: #16a34a; font-weight: 600; }
     .error { color: #dc2626; font-size: 0.875rem; margin-top: 0.5rem; }
     .fail { color: #dc2626; font-weight: 600; }
-    code { background: #f0f0f0; padding: 0.125rem 0.375rem; border-radius: 4px; font-size: 0.9em; }
-    .instructions { margin: 1rem 0; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
-    @media (prefers-color-scheme: dark) {
-      .instructions { background: #1e293b; border-color: #334155; }
-      .subtitle { color: #999; }
-    }
+    code { background: #222; padding: 0.125rem 0.375rem; border-radius: 4px; font-size: 0.9em; color: #7dd3fc; }
+    .instructions { margin: 1rem 0; padding: 1rem; background: #1e293b; border-radius: 8px; border: 1px solid #334155; }
   </style>
 </head>
 <body>
@@ -168,7 +160,7 @@ export function renderPage(siteKey: string, verificationEmail: string): string {
     }
 
     async function pollStatus() {
-      const maxAttempts = 600;
+      const maxAttempts = 120;
       let attempts = 0;
       const interval = setInterval(async () => {
         attempts++;
@@ -197,7 +189,7 @@ export function renderPage(siteKey: string, verificationEmail: string): string {
             document.getElementById("resultFail").style.display = "block";
           }
         } catch { /* retry on next tick */ }
-      }, 3000);
+      }, 15000);
     }
   </script>
 </body>
