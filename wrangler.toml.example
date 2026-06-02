@@ -5,6 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 KV_BINDING_NAME = "PENDING_VERIFICATIONS"
+LOG_LEVEL = "error"
 TURNSTILE_SITE_KEY = ""
 GITHUB_ORG = ""
 GITHUB_REPO = ""
