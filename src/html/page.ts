@@ -96,6 +96,14 @@ export function renderPage(siteKey: string, verificationEmail: string): string {
         <h1 class="success">Invitation Sent!</h1>
         <p style="margin-top:0.5rem;">Check your email for the GitHub organization invite.</p>
       </div>
+      <div id="resultPending" style="display:none;">
+        <h1 class="success">Request Submitted!</h1>
+        <p style="margin-top:0.5rem;">Your access request is pending admin review. You'll receive a GitHub invitation by email once approved.</p>
+      </div>
+      <div id="resultDeclined" style="display:none;">
+        <h1 class="fail">Request Declined</h1>
+        <p style="margin-top:0.5rem;">Your access request was not approved.</p>
+      </div>
       <div id="resultFail" style="display:none;">
         <h1 class="fail">Something Went Wrong</h1>
         <p style="margin-top:0.5rem;">GitHub API returned an error. Please try again later.</p>
@@ -179,10 +187,18 @@ export function renderPage(siteKey: string, verificationEmail: string): string {
             return;
           }
           const data = await res.json();
-          if (data.status === "completed") {
+          if (data.status === "approved") {
             clearInterval(interval);
             showStep(3);
             document.getElementById("resultSuccess").style.display = "block";
+          } else if (data.status === "pending_review") {
+            clearInterval(interval);
+            showStep(3);
+            document.getElementById("resultPending").style.display = "block";
+          } else if (data.status === "declined") {
+            clearInterval(interval);
+            showStep(3);
+            document.getElementById("resultDeclined").style.display = "block";
           } else if (data.status.startsWith("failed")) {
             clearInterval(interval);
             showStep(3);
