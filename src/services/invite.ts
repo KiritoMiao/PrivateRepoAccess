@@ -12,11 +12,12 @@ export async function performInvitation(
   const log = createLogger(env);
   const kv = getKV(env);
 
-  const cacheKey = `team_id:${env.GITHUB_TEAM_SLUG}`;
-  let teamId: number;
+  const cacheKey = `team_id:${env.GITHUB_ORG}:${env.GITHUB_TEAM_SLUG}`;
   const cached = await kv.get(cacheKey);
-  if (cached) {
-    teamId = Number(cached);
+  const cachedId = cached !== null ? Number(cached) : NaN;
+  let teamId: number;
+  if (Number.isSafeInteger(cachedId) && cachedId > 0) {
+    teamId = cachedId;
   } else {
     teamId = await resolveTeamId(
       env.GITHUB_ORG,

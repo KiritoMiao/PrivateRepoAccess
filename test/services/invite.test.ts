@@ -20,7 +20,7 @@ function baseEnv() {
 describe("performInvitation", () => {
   beforeEach(async () => {
     globalThis.fetch = originalFetch;
-    await kv.delete("team_id:my-team");
+    await kv.delete("team_id:my-org:my-team");
   });
 
   it("resolves team, sets permission, and sends invitation in order", async () => {
@@ -47,7 +47,7 @@ describe("performInvitation", () => {
   });
 
   it("uses cached team id on second call (no resolve fetch)", async () => {
-    await kv.put("team_id:my-team", "999");
+    await kv.put("team_id:my-org:my-team", "999");
 
     const urls: string[] = [];
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {

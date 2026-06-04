@@ -3,18 +3,28 @@ import { listReviews, getReview, updateReviewStatus } from "../services/kv";
 import { performInvitation } from "../services/invite";
 import { renderAdminPage } from "../html/admin";
 
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
+// Compares two secrets without leaking their length or content via timing.
+// Both inputs are hashed to a fixed-length digest first, so the byte-wise
+// comparison always runs over the same number of bytes regardless of input
+// length (a raw length check would leak the token length).
+async function tokensMatch(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [da, db] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const va = new Uint8Array(da);
+  const vb = new Uint8Array(db);
   let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < va.length; i++) {
+    result |= va[i] ^ vb[i];
   }
   return result === 0;
 }
 
-function authorized(env: Env, token: string | null): boolean {
+async function authorized(env: Env, token: string | null): Promise<boolean> {
   if (!env.ADMIN_TOKEN || !token) return false;
-  return constantTimeEqual(token, env.ADMIN_TOKEN);
+  return tokensMatch(token, env.ADMIN_TOKEN);
 }
 
 export async function handleAdminPage(
@@ -23,7 +33,7 @@ export async function handleAdminPage(
 ): Promise<Response> {
   const url = new URL(request.url);
   const token = url.searchParams.get("token");
-  if (!authorized(env, token)) {
+  if (!(await authorized(env, token))) {
     return new Response("Unauthorized", {
       status: 401,
       headers: { "Content-Type": "text/html;charset=UTF-8" },
@@ -53,7 +63,7 @@ export async function handleApprove(
 ): Promise<Response> {
   const log = createLogger(env);
   const body = await readBody(request);
-  if (!authorized(env, body?.token ?? null)) {
+  if (!(await authorized(env, body?.token ?? null))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!body?.reviewId) {
@@ -73,6 +83,17 @@ export async function handleApprove(
 
   try {
     await performInvitation(env, review.email);
+    // Re-read immediately before the terminal write: if a concurrent decline
+    // (or another approve) changed the status while the GitHub call was in
+    // flight, don't clobber that decision. GitHub deduplicates invitations, so
+    // a redundant invite from a racing request is harmless.
+    const current = await getReview(getKV(env), body.reviewId);
+    if (!current || current.status !== "pending_review") {
+      return Response.json(
+        { error: `Already ${current?.status ?? "removed"}` },
+        { status: 409 }
+      );
+    }
     await updateReviewStatus(getKV(env), body.reviewId, "approved");
     log.info(`[admin] approved ${review.email} (review ${body.reviewId})`);
     return Response.json({ status: "approved" });
@@ -90,7 +111,7 @@ export async function handleDecline(
 ): Promise<Response> {
   const log = createLogger(env);
   const body = await readBody(request);
-  if (!authorized(env, body?.token ?? null)) {
+  if (!(await authorized(env, body?.token ?? null))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!body?.reviewId) {
@@ -100,6 +121,12 @@ export async function handleDecline(
   const review = await getReview(getKV(env), body.reviewId);
   if (!review) {
     return Response.json({ error: "Review not found" }, { status: 404 });
+  }
+  if (review.status !== "pending_review") {
+    return Response.json(
+      { error: `Already ${review.status}` },
+      { status: 409 }
+    );
   }
 
   await updateReviewStatus(getKV(env), body.reviewId, "declined");

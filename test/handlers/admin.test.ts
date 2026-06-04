@@ -30,7 +30,7 @@ function postReq(body: unknown): Request {
 describe("admin handlers", () => {
   beforeEach(async () => {
     globalThis.fetch = originalFetch;
-    await kv.delete("team_id:my-team");
+    await kv.delete("team_id:my-org:my-team");
   });
 
   describe("handleAdminPage", () => {
@@ -110,6 +110,32 @@ describe("admin handlers", () => {
       const record = await getReview(kv, id);
       expect(record!.status).toBe("failed_github_api");
     });
+
+    it("does not clobber a status changed during the GitHub call (atomicity re-read)", async () => {
+      const id = await createReview(kv, "a-race@example.com");
+      // Simulate a concurrent decline landing while the invitation is in flight:
+      // the org-invitation fetch flips the review to "declined" before resolving.
+      globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+        if (url.endsWith("/teams/my-team")) {
+          return new Response(JSON.stringify({ id: 7 }), { status: 200 });
+        }
+        if (url.endsWith("/repos/my-org/my-repo")) {
+          return new Response(null, { status: 204 });
+        }
+        if (url.endsWith("/invitations")) {
+          const rec = await getReview(kv, id);
+          rec!.status = "declined";
+          await kv.put(`review:${id}`, JSON.stringify(rec));
+          return new Response(JSON.stringify({ id: 1 }), { status: 201 });
+        }
+        return new Response("x", { status: 500 });
+      });
+
+      const res = await handleApprove(postReq({ reviewId: id, token: "secret-token" }), testEnv());
+      expect(res.status).toBe(409);
+      const record = await getReview(kv, id);
+      expect(record!.status).toBe("declined");
+    });
   });
 
   describe("handleDecline", () => {
@@ -124,6 +150,23 @@ describe("admin handlers", () => {
       expect(res.status).toBe(200);
       const record = await getReview(kv, id);
       expect(record!.status).toBe("declined");
+    });
+
+    it("returns 409 and does not rewrite an already-final review", async () => {
+      const id = await createReview(kv, "d-final@example.com");
+      const rec = await getReview(kv, id);
+      rec!.status = "approved";
+      await kv.put(`review:${id}`, JSON.stringify(rec));
+
+      const req = new Request("http://localhost/api/admin/decline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId: id, token: "secret-token" }),
+      });
+      const res = await handleDecline(req, testEnv());
+      expect(res.status).toBe(409);
+      const record = await getReview(kv, id);
+      expect(record!.status).toBe("approved");
     });
 
     it("returns 401 for wrong token", async () => {

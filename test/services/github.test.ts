@@ -81,10 +81,17 @@ describe("GitHub service", () => {
       });
     });
 
-    it("does not throw on 422 (already a member)", async () => {
+    it("does not throw on 422 when already a member/invited", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue(
         new Response(
-          JSON.stringify({ message: "Validation Failed" }),
+          JSON.stringify({
+            errors: [
+              {
+                message:
+                  "A user with this email is already a part of your organization, or has already been invited.",
+              },
+            ],
+          }),
           { status: 422 }
         )
       );
@@ -94,6 +101,21 @@ describe("GitHub service", () => {
           "my-org", "member@example.com", "direct_member", [12345], "ghp_token"
         )
       ).resolves.not.toThrow();
+    });
+
+    it("throws on 422 that is not an already-member case (e.g. bad team_ids)", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ message: "Validation Failed", errors: [{ field: "team_ids" }] }),
+          { status: 422 }
+        )
+      );
+
+      await expect(
+        sendOrgInvitation(
+          "my-org", "user@example.com", "direct_member", [999999], "ghp_token"
+        )
+      ).rejects.toThrow("Failed to send org invitation: 422");
     });
 
     it("throws on other error status codes", async () => {

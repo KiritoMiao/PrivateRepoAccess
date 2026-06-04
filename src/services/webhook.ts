@@ -16,12 +16,21 @@ export async function sendWebhook(
   const log = createLogger(env);
   if (!env.WEBHOOK_URL) return;
 
-  const body = env.WEBHOOK_TEMPLATE
-    .replaceAll("{{title}}", jsonEscape(title))
-    .replaceAll("{{text_short}}", jsonEscape(textShort))
-    .replaceAll("{{text_long}}", jsonEscape(textLong));
-
   try {
+    // Single pass over the template: each placeholder is replaced exactly once
+    // from the original template, so user-supplied content that happens to
+    // contain a placeholder string (e.g. an email "x{{text_long}}@y.com") is
+    // never re-expanded.
+    const replacements: Record<string, string> = {
+      "{{title}}": jsonEscape(title),
+      "{{text_short}}": jsonEscape(textShort),
+      "{{text_long}}": jsonEscape(textLong),
+    };
+    const body = env.WEBHOOK_TEMPLATE.replace(
+      /\{\{(?:title|text_short|text_long)\}\}/g,
+      (match) => replacements[match]
+    );
+
     const res = await fetch(env.WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

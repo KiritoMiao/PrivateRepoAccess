@@ -49,6 +49,26 @@ describe("sendWebhook", () => {
     expect(body.text).toBe('evil"@x.com');
   });
 
+  it("does not re-expand a placeholder contained in user input", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(new Response("ok", { status: 200 }))
+    );
+    globalThis.fetch = fetchMock;
+
+    const testEnv = {
+      ...env,
+      WEBHOOK_URL: "https://hook.example.com/post",
+      WEBHOOK_TEMPLATE: '{"text":"{{text_short}} | {{text_long}}"}',
+    };
+
+    // The email (text_short) literally contains the {{text_long}} token.
+    // Single-pass substitution must leave it as a literal, not expand it.
+    await sendWebhook(testEnv, "t", "a{{text_long}}@x.com", "SECRET_LONG");
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.text).toBe("a{{text_long}}@x.com | SECRET_LONG");
+  });
+
   it("skips POST when WEBHOOK_URL is empty", async () => {
     const fetchMock = vi.fn();
     globalThis.fetch = fetchMock;

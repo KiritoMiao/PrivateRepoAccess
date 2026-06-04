@@ -56,7 +56,15 @@ export async function sendOrgInvitation(
     headers: headers(pat),
     body: JSON.stringify({ email, role, team_ids: teamIds }),
   });
-  if (res.status === 422) return;
+  // GitHub returns 422 both for "already a member / already invited" (which we
+  // treat as success) and for genuine validation errors such as an invalid
+  // team_id. Only swallow the duplicate case; surface everything else so the
+  // caller can mark the request failed instead of falsely "approved".
+  if (res.status === 422) {
+    const detail = await res.text();
+    if (/already/i.test(detail)) return;
+    throw new Error(`Failed to send org invitation: 422 ${detail}`);
+  }
   if (!res.ok) {
     throw new Error(`Failed to send org invitation: ${res.status}`);
   }
