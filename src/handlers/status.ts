@@ -3,7 +3,9 @@ import { getVerification } from "../services/kv";
 
 const STATUS_MESSAGES: Record<VerificationStatus, string> = {
   pending_email: "Waiting for your verification email...",
-  completed: "Invitation sent! Check your email for the GitHub invite.",
+  pending_review: "Your request is pending admin review.",
+  approved: "Approved! Check your email for the GitHub invitation.",
+  declined: "Your request was declined.",
   failed_github_api: "Something went wrong with GitHub. Please try again later.",
 };
 

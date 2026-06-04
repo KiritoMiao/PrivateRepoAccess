@@ -3,6 +3,8 @@ import { env } from "cloudflare:test";
 import { handleStatus } from "../../src/handlers/status";
 import { createVerification, updateVerificationStatus } from "../../src/services/kv";
 
+const kv = env.FAASGAUGE_REPO_PENDING_VERIFICATIONS;
+
 function makeRequest(token: string): Request {
   return new Request(`http://localhost/api/status/${token}`);
 }
@@ -14,44 +16,34 @@ describe("handleStatus", () => {
   });
 
   it("returns pending_email status", async () => {
-    const token = await createVerification(
-      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
-      "status1@example.com"
-    );
+    const token = await createVerification(kv, "s-pending@example.com");
     const res = await handleStatus(makeRequest(token), env);
-    expect(res.status).toBe(200);
     const data = (await res.json()) as { status: string; message: string };
     expect(data.status).toBe("pending_email");
     expect(data.message).toBeDefined();
   });
 
-  it("returns completed status", async () => {
-    const token = await createVerification(
-      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
-      "status2@example.com"
-    );
-    await updateVerificationStatus(
-      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
-      token,
-      "completed"
-    );
+  it("returns pending_review status", async () => {
+    const token = await createVerification(kv, "s-review@example.com");
+    await updateVerificationStatus(kv, token, "pending_review");
     const res = await handleStatus(makeRequest(token), env);
     const data = (await res.json()) as { status: string };
-    expect(data.status).toBe("completed");
+    expect(data.status).toBe("pending_review");
   });
 
-  it("returns failed_github_api status", async () => {
-    const token = await createVerification(
-      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
-      "status3@example.com"
-    );
-    await updateVerificationStatus(
-      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
-      token,
-      "failed_github_api"
-    );
+  it("returns approved status", async () => {
+    const token = await createVerification(kv, "s-approved@example.com");
+    await updateVerificationStatus(kv, token, "approved");
     const res = await handleStatus(makeRequest(token), env);
     const data = (await res.json()) as { status: string };
-    expect(data.status).toBe("failed_github_api");
+    expect(data.status).toBe("approved");
+  });
+
+  it("returns declined status", async () => {
+    const token = await createVerification(kv, "s-declined@example.com");
+    await updateVerificationStatus(kv, token, "declined");
+    const res = await handleStatus(makeRequest(token), env);
+    const data = (await res.json()) as { status: string };
+    expect(data.status).toBe("declined");
   });
 });

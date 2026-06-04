@@ -68,10 +68,10 @@ describe("KV service", () => {
     await updateVerificationStatus(
       env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
       token,
-      "completed"
+      "approved"
     );
     const record = await getVerification(env.FAASGAUGE_REPO_PENDING_VERIFICATIONS, token);
-    expect(record!.status).toBe("completed");
+    expect(record!.status).toBe("approved");
   });
 
   it("deletes email index", async () => {
