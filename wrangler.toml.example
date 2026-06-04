@@ -13,6 +13,9 @@ GITHUB_ROLE = "direct_member"
 GITHUB_TEAM_SLUG = ""
 GITHUB_PERMISSION = "pull"
 VERIFICATION_EMAIL = ""
+PUBLIC_URL = ""
+WEBHOOK_URL = ""
+WEBHOOK_TEMPLATE = '{"text":"{{title}}\n{{text_long}}"}'
 
 [[kv_namespaces]]
 binding = "PENDING_VERIFICATIONS"
@@ -25,3 +28,4 @@ enabled = true
 # Secrets (set via `wrangler secret put`):
 # TURNSTILE_SECRET_KEY
 # GITHUB_PAT
+# ADMIN_TOKEN

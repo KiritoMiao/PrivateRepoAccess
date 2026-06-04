@@ -8,7 +8,8 @@ A Cloudflare Worker that gates GitHub organization repository access behind a tw
 2. User completes a Cloudflare Turnstile captcha
 3. User is instructed to send an email from that address to a verification address
 4. Cloudflare Email Routing delivers the email to the Worker
-5. The Worker verifies the sender matches a pending request, then sends a GitHub org invitation with team-scoped repo access
+5. The Worker creates a **pending review** request and notifies the admin via webhook
+6. The admin approves or declines from a token-protected admin page; on approval, the Worker sends a GitHub org invitation with team-scoped repo access
 
 ## Prerequisites
 
@@ -121,7 +122,38 @@ The Worker uses a team-based permission model. Before deploying:
 4. Add your target repo and set the permission level (e.g., `Read`)
 5. Use the team's URL slug as `GITHUB_TEAM_SLUG` in `wrangler.toml`
 
-When a user completes verification, they receive an org invitation that automatically adds them to this team, granting the configured repo permission.
+When a user is approved, they receive an org invitation that automatically adds them to this team, granting the configured repo permission.
+
+## Admin Review
+
+After a user verifies their email, the request enters a pending review list instead of being invited automatically. You approve or decline from the admin page.
+
+### Configuration
+
+- `PUBLIC_URL` — your Worker's base URL (e.g. `https://worker-access-interface.<sub>.workers.dev`), used to build the admin link in notifications
+- `WEBHOOK_URL` — endpoint to POST notifications to (leave empty to disable)
+- `WEBHOOK_TEMPLATE` — JSON body template with `{{title}}`, `{{text_short}}`, `{{text_long}}` placeholders
+- `ADMIN_TOKEN` — secret protecting the admin page; set via `npx wrangler secret put ADMIN_TOKEN`
+
+### Webhook template examples
+
+Telegram:
+
+```json
+{"chat_id":"123456789","text":"*{{title}}*\n\n{{text_long}}","parse_mode":"Markdown"}
+```
+
+Discord:
+
+```json
+{"content":"**{{title}}**\n{{text_long}}"}
+```
+
+### Reviewing requests
+
+The notification contains a link to `/admin?token=ADMIN_TOKEN`. Open it to see all pending requests and click **Approve** (sends the GitHub invitation) or **Decline**.
+
+> **Security note:** the admin link embeds `ADMIN_TOKEN` as a URL query parameter. The token is a long-lived credential — treat the notification channel as sensitive, and rotate the token (`wrangler secret put ADMIN_TOKEN`) if a link leaks.
 
 ## Environment Variables Reference
 
@@ -136,6 +168,10 @@ When a user completes verification, they receive an org invitation that automati
 | `GITHUB_TEAM_SLUG` | Env var | Team slug for repo-scoped access |
 | `GITHUB_PERMISSION` | Env var | Repo permission level (default: `pull`) |
 | `VERIFICATION_EMAIL` | Env var | Email address users send verification to |
+| `PUBLIC_URL` | Env var | Worker base URL, used for the admin link in notifications |
+| `WEBHOOK_URL` | Env var | Endpoint to POST admin notifications to (empty = disabled) |
+| `WEBHOOK_TEMPLATE` | Env var | JSON notification body with `{{title}}`/`{{text_short}}`/`{{text_long}}` |
+| `ADMIN_TOKEN` | Secret | Protects the admin page and approve/decline endpoints |
 
 ## Architecture
 
