@@ -10,6 +10,10 @@ export interface Env {
   GITHUB_TEAM_SLUG: string;
   GITHUB_PERMISSION: string;
   VERIFICATION_EMAIL: string;
+  WEBHOOK_URL: string;
+  WEBHOOK_TEMPLATE: string;
+  PUBLIC_URL: string;
+  ADMIN_TOKEN: string;
 }
 
 const LOG_LEVELS = { error: 0, warn: 1, info: 2, debug: 3 } as const;
@@ -35,10 +39,25 @@ export function getKV(env: Env): KVNamespace {
 
 export type VerificationStatus =
   | "pending_email"
-  | "completed"
+  | "pending_review"
+  | "approved"
+  | "declined"
   | "failed_github_api";
 
 export interface VerificationRecord {
+  email: string;
+  status: VerificationStatus;
+  createdAt: number;
+}
+
+export interface ReviewRecord {
+  email: string;
+  status: VerificationStatus;
+  createdAt: number;
+  reviewedAt: number | null;
+}
+
+export interface ReviewMetadata {
   email: string;
   status: VerificationStatus;
   createdAt: number;
