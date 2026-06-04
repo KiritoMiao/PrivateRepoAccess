@@ -1,12 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { env } from "cloudflare:test";
 import { handleEmail } from "../../src/handlers/email";
-import {
-  createVerification,
-  getVerification,
-} from "../../src/services/kv";
+import { createVerification, getVerification } from "../../src/services/kv";
+import { listReviews } from "../../src/services/kv";
 
 const originalFetch = globalThis.fetch;
+const kv = env.FAASGAUGE_REPO_PENDING_VERIFICATIONS;
 
 function makeEmailMessage(from: string): ForwardableEmailMessage {
   return {
@@ -21,79 +20,70 @@ function makeEmailMessage(from: string): ForwardableEmailMessage {
   } as unknown as ForwardableEmailMessage;
 }
 
-describe("handleEmail", () => {
+function testEnv() {
+  return {
+    ...env,
+    WEBHOOK_URL: "https://hook.example.com/post",
+    WEBHOOK_TEMPLATE: '{"text":"{{text_long}}"}',
+    PUBLIC_URL: "https://worker.example.com",
+    ADMIN_TOKEN: "secret-token",
+  };
+}
+
+describe("handleEmail (review flow)", () => {
   beforeEach(() => {
     globalThis.fetch = originalFetch;
   });
 
-  it("silently drops email with no matching KV record", async () => {
-    await handleEmail(makeEmailMessage("unknown@example.com"), env);
-    // No error thrown — silent drop
+  it("silently drops email with no matching record", async () => {
+    globalThis.fetch = vi.fn();
+    await handleEmail(makeEmailMessage("unknown@example.com"), testEnv());
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
-  it("invites user and sets status to completed on success", async () => {
-    const token = await createVerification(
-      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
-      "invitee@example.com"
+  it("creates a pending review and fires webhook, does NOT call GitHub", async () => {
+    const token = await createVerification(kv, "reviewme@example.com");
+
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("api.github.com")) {
+        throw new Error("GitHub must not be called before approval");
+      }
+      return Promise.resolve(new Response("ok", { status: 200 }));
+    });
+    globalThis.fetch = fetchMock;
+
+    await handleEmail(makeEmailMessage("reviewme@example.com"), testEnv());
+
+    const record = await getVerification(kv, token);
+    expect(record!.status).toBe("pending_review");
+
+    const reviews = await listReviews(kv);
+    expect(reviews.some((r) => r.metadata.email === "reviewme@example.com")).toBe(true);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://hook.example.com/post",
+      expect.objectContaining({ method: "POST" })
     );
-
-    // Mock: resolveTeamId, ensureRepoPermission, sendOrgInvitation
-    globalThis.fetch = vi.fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: 99 }), { status: 200 })
-      ) // resolveTeamId
-      .mockResolvedValueOnce(
-        new Response(null, { status: 204 })
-      ) // ensureRepoPermission
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: 1 }), { status: 201 })
-      ); // sendOrgInvitation
-
-    await handleEmail(makeEmailMessage("invitee@example.com"), env);
-
-    const record = await getVerification(env.FAASGAUGE_REPO_PENDING_VERIFICATIONS, token);
-    expect(record!.status).toBe("completed");
   });
 
-  it("sets status to failed_github_api on GitHub error", async () => {
-    const token = await createVerification(
-      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
-      "fail@example.com"
-    );
+  it("still creates review when webhook fails", async () => {
+    const token = await createVerification(kv, "hookfail@example.com");
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("hook down"));
 
-    globalThis.fetch = vi.fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: 99 }), { status: 200 })
-      ) // resolveTeamId
-      .mockResolvedValueOnce(
-        new Response(null, { status: 204 })
-      ) // ensureRepoPermission
-      .mockResolvedValueOnce(
-        new Response("Server Error", { status: 500 })
-      ); // sendOrgInvitation fails
+    await handleEmail(makeEmailMessage("hookfail@example.com"), testEnv());
 
-    await handleEmail(makeEmailMessage("fail@example.com"), env);
-
-    const record = await getVerification(env.FAASGAUGE_REPO_PENDING_VERIFICATIONS, token);
-    expect(record!.status).toBe("failed_github_api");
+    const record = await getVerification(kv, token);
+    expect(record!.status).toBe("pending_review");
   });
 
   it("skips already-processed records", async () => {
-    const token = await createVerification(
-      env.FAASGAUGE_REPO_PENDING_VERIFICATIONS,
-      "done@example.com"
-    );
-    // Manually complete it
-    const rec = await getVerification(env.FAASGAUGE_REPO_PENDING_VERIFICATIONS, token);
-    rec!.status = "completed";
-    await env.FAASGAUGE_REPO_PENDING_VERIFICATIONS.put(
-      `verify:${token}`,
-      JSON.stringify(rec)
-    );
+    const token = await createVerification(kv, "done@example.com");
+    const rec = await getVerification(kv, token);
+    rec!.status = "pending_review";
+    await kv.put(`verify:${token}`, JSON.stringify(rec));
 
-    // Should not call GitHub at all
     globalThis.fetch = vi.fn();
-    await handleEmail(makeEmailMessage("done@example.com"), env);
+    await handleEmail(makeEmailMessage("done@example.com"), testEnv());
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });

@@ -4,12 +4,9 @@ import {
   getVerification,
   updateVerificationStatus,
   deleteEmailIndex,
+  createReview,
 } from "../services/kv";
-import {
-  resolveTeamId,
-  ensureRepoPermission,
-  sendOrgInvitation,
-} from "../services/github";
+import { sendWebhook } from "../services/webhook";
 
 export async function handleEmail(
   message: ForwardableEmailMessage,
@@ -31,51 +28,15 @@ export async function handleEmail(
     return;
   }
 
-  try {
-    const cacheKey = `team_id:${env.GITHUB_TEAM_SLUG}`;
-    let teamId: number;
-    const cached = await getKV(env).get(cacheKey);
-    if (cached) {
-      teamId = Number(cached);
-    } else {
-      teamId = await resolveTeamId(
-        env.GITHUB_ORG,
-        env.GITHUB_TEAM_SLUG,
-        env.GITHUB_PAT
-      );
-      await getKV(env).put(cacheKey, String(teamId), {
-        expirationTtl: 3600,
-      });
-      log.debug(`[email] resolved team ${env.GITHUB_TEAM_SLUG} → id ${teamId}`);
-    }
-
-    await ensureRepoPermission(
-      env.GITHUB_ORG,
-      env.GITHUB_TEAM_SLUG,
-      env.GITHUB_REPO,
-      env.GITHUB_PERMISSION || "pull",
-      env.GITHUB_PAT
-    );
-
-    await sendOrgInvitation(
-      env.GITHUB_ORG,
-      record.email,
-      env.GITHUB_ROLE || "direct_member",
-      [teamId],
-      env.GITHUB_PAT
-    );
-
-    await updateVerificationStatus(getKV(env), token, "completed");
-    log.info(`[email] SUCCESS: invited ${record.email} to ${env.GITHUB_ORG}/${env.GITHUB_REPO} (team: ${env.GITHUB_TEAM_SLUG}, permission: ${env.GITHUB_PERMISSION || "pull"})`);
-  } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    log.error(`[email] FAILED: ${record.email} — ${errMsg}`);
-    await updateVerificationStatus(
-      getKV(env),
-      token,
-      "failed_github_api"
-    );
-  }
-
+  // Create a persistent review request instead of inviting directly.
+  const reviewId = await createReview(getKV(env), record.email);
+  await updateVerificationStatus(getKV(env), token, "pending_review");
   await deleteEmailIndex(getKV(env), senderEmail);
+  log.info(`[email] pending review created for ${record.email} (review ${reviewId})`);
+
+  // Notify the admin (failures are logged inside sendWebhook, never thrown).
+  const adminUrl = `${env.PUBLIC_URL}/admin?token=${env.ADMIN_TOKEN}`;
+  const requestedAt = new Date(record.createdAt).toISOString();
+  const textLong = `Email: ${record.email}\nRequested: ${requestedAt}\nReview: ${adminUrl}`;
+  await sendWebhook(env, "New repo access request", record.email, textLong);
 }
